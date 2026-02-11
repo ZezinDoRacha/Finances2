@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Financeira</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Gestão de Cobranças</h1>
+
+        <div class="dashboard">
+            <div class="card card-atrasado">
+                <h3>🔴 Total Atrasado</h3>
+                <p id="totalAtrasados">R$ 0,00</p>
+            </div>
+            <div class="card card-pendente">
+                <h3>🟠 A Receber (No Prazo)</h3>
+                <p id="totalPendentes">R$ 0,00</p>
+            </div>
+            <div class="card card-recebido">
+                <h3>🟢 Total Recebido</h3>
+                <p id="totalRecebido">R$ 0,00</p>
+            </div>
+            <div class="card">
+                <h3>Backup</h3>
+                <button onclick="exportarExcel()" class="btn-exportar">📥 Exportar Excel</button>
+            </div>
+        </div>
+        
+        <section class="cadastro">
+            <input type="text" id="nome" placeholder="Nome do Cliente">
+            <input type="tel" id="telefone" placeholder="WhatsApp">
+            <input type="number" id="valor" placeholder="Valor (R$)">
+            <input type="date" id="data">
+            <select id="repetir">
+                <option value="1">Cobrança Única</option>
+                <option value="4">Parcelado (4 Semanas)</option>
+                <option value="8">Parcelado (8 Semanas)</option>
+                <option value="12">Parcelado (12 Semanas)</option>
+            </select>
+            <button onclick="adicionarCobranca()" class="btn-cadastrar">Cadastrar</button>
+        </section>
+
+        <div class="busca-container">
+            <input type="text" id="buscaNome" placeholder="🔍 Buscar cliente pelo nome..." oninput="renderizar()">
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" id="btn-atrasados" onclick="mudarAba('atrasados')">🔴 Devendo</button>
+            <button class="tab-btn" id="btn-pendentes" onclick="mudarAba('pendentes')">🟠 A Pagar</button>
+            <button class="tab-btn" id="btn-pagos" onclick="mudarAba('pagos')">🟢 Pagos</button>
+            <button class="tab-btn" id="btn-parcelados" onclick="mudarAba('parcelados')">📅 Parcelados</button>
+        </div>
+
+        <section id="janela-lista">
+            <ul id="listaPrincipal"></ul>
+        </section>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
