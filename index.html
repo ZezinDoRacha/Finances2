@@ -1,63 +1,110 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão de Cobranças</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestão Financeira Pro 2026</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>Gestão de Cobranças</h1>
 
-        <div class="dashboard">
-            <div class="card card-atrasado">
-                <h3>🔴 Total Atrasado</h3>
-                <p id="totalAtrasados">R$ 0,00</p>
-            </div>
-            <div class="card card-pendente">
-                <h3>🟠 A Receber (No Prazo)</h3>
-                <p id="totalPendentes">R$ 0,00</p>
-            </div>
-            <div class="card card-recebido">
-                <h3>🟢 Total Recebido</h3>
-                <p id="totalRecebido">R$ 0,00</p>
-            </div>
-            <div class="card">
-                <h3>Backup</h3>
-                <button onclick="exportarExcel()" class="btn-exportar">📥 Exportar Excel</button>
-            </div>
-        </div>
-        
-        <section class="cadastro">
-            <input type="text" id="nome" placeholder="Nome do Cliente">
-            <input type="tel" id="telefone" placeholder="WhatsApp">
-            <input type="number" id="valor" placeholder="Valor (R$)">
-            <input type="date" id="data">
-            <select id="repetir">
-                <option value="1">Cobrança Única</option>
-                <option value="4">Parcelado (4 Semanas)</option>
-                <option value="8">Parcelado (8 Semanas)</option>
-                <option value="12">Parcelado (12 Semanas)</option>
-            </select>
-            <button onclick="adicionarCobranca()" class="btn-cadastrar">Cadastrar</button>
-        </section>
+<div class="app-container">
+  <aside class="sidebar">
+    <div class="backup-area">
+  <button class="btn-backup" onclick="exportarDados()">💾 Exportar Backup</button>
+  <button class="btn-backup" onclick="document.getElementById('input-import').click()">📂 Importar Backup</button>
+  <input type="file" id="input-import" style="display:none" onchange="importarDados(event)" accept=".json">
+</div>
+    <h2>SISTEMA 2026</h2>
+    <nav id="menu-meses"></nav>
+    <button id="btn-investimentos" class="btn-invest-link" onclick="mudarModo('investimentos')">
+      📊 Investimentos
+    </button>
+  </aside>
 
-        <div class="busca-container">
-            <input type="text" id="buscaNome" placeholder="🔍 Buscar cliente..." oninput="renderizar()">
-        </div>
+  <main class="main-content">
+    <header>
+      <h1 id="titulo-pagina">Janeiro</h1>
+      <div class="dashboard" id="painel-resumo">
+        <div class="card card-atrasado"><h3>🔴 Atrasado</h3><p id="totalAtrasados">R$ 0,00</p></div>
+        <div class="card card-pendente"><h3>🟠 Restante</h3><p id="totalPendentes">R$ 0,00</p></div>
+        <div class="card card-recebido"><h3>🟢 Recebido</h3><p id="totalRecebido">R$ 0,00</p></div>
+      </div>
+    </header>
 
-        <div class="tabs">
-            <button class="tab-btn active" id="btn-atrasados" onclick="mudarAba('atrasados')">🔴 Devendo</button>
-            <button class="tab-btn" id="btn-pendentes" onclick="mudarAba('pendentes')">🟠 A Pagar</button>
-            <button class="tab-btn" id="btn-pagos" onclick="mudarAba('pagos')">🟢 Pagos</button>
-            <button class="tab-btn" id="btn-parcelados" onclick="mudarAba('parcelados')">📅 Parcelados</button>
-        </div>
+    <div id="view-cobrancas">
+      <section class="cadastro">
+        <input type="text" id="nome" placeholder="Nome do Cliente" />
+        <input type="tel" id="telefone" placeholder="WhatsApp" />
+        <input type="number" id="valor" placeholder="Valor Total" step="0.01" />
+        <input type="date" id="data" />
+        <select id="repetir">
+          <option value="1">Única</option>
+          <option value="4">4× semanal</option>
+          <option value="8">8× semanal</option>
+          <option value="12">12× semanal</option>
+        </select>
+        <button class="btn-cadastrar" onclick="adicionarCobranca()">Cadastrar</button>
+      </section>
 
-        <section id="janela-lista">
-            <ul id="listaPrincipal"></ul>
-        </section>
+      <div class="busca-container">
+        <input type="text" id="buscaNome" placeholder="🔍 Buscar cliente (Busca Global em todas as abas)..." />
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-aba="atrasados" onclick="mudarAba('atrasados')">🔴 Devendo</button>
+        <button class="tab-btn" data-aba="pendentes" onclick="mudarAba('pendentes')">🟠 A Pagar</button>
+        <button class="tab-btn" data-aba="pagos" onclick="mudarAba('pagos')">🟢 Pagos</button>
+        <button class="tab-btn" data-aba="parcelados" onclick="mudarAba('parcelados')">📅 Parcelados</button>
+      </div>
+
+      <section id="janela-lista">
+        <ul id="listaPrincipal"></ul>
+      </section>
     </div>
-    <script src="script.js"></script>
+
+    <div id="view-investimentos" style="display:none;">
+      <div class="invest-container">
+        <div style="width:320px; max-width:100%; height:320px;">
+          <canvas id="graficoInvestimentos"></canvas>
+        </div>
+        <div style="flex:1; min-width:300px;">
+          <h2 style="margin:0 0 1.2rem 0; color:var(--success); font-size:2.6rem;">
+            Total: <span id="total-investido-valor">R$ 0,00</span>
+          </h2>
+          <section class="cadastro invest-cadastro">
+            <select id="mes-invest"><option value="">Mês</option></select>
+            <input type="number" id="valor-invest" placeholder="Valor (R$)" step="0.01" />
+            <input type="text" id="descricao-invest" placeholder="Descrição" />
+            <button class="btn-cadastrar" onclick="adicionarInvestimento()">Salvar</button>
+          </section>
+          <ul id="lista-investimentos" style="list-style:none; padding:0;"></ul>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="modalEdicao" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="fecharModal()">×</span>
+    <h3>Editar Lançamento</h3>
+    <input type="hidden" id="edit-id" />
+    <div class="form-edit">
+      <label>Nome do cliente</label>
+      <input type="text" id="edit-nome" />
+      <div class="row">
+        <div><label>Valor total</label><input type="number" id="edit-valor" step="0.01" /></div>
+        <div><label>Recebido</label><input type="number" id="edit-pago-parcial" step="0.01" /></div>
+      </div>
+      <label>Vencimento</label>
+      <input type="date" id="edit-data" />
+      <button class="btn-salvar-modal" onclick="salvarEdicao()">Atualizar</button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>
