@@ -1,308 +1,470 @@
-const STORAGE_COBRANCAS = 'cobrancas_2026';
-const STORAGE_INVEST = 'investimentos_2026';
+/* =========================================
+   1. CONFIGURAÇÕES E DADOS GERAIS
+   ========================================= */
+const STORAGE_CLIENTES = 'cobrancas_2026';
+const STORAGE_SALDO = 'cofrinho_saldo';
+const STORAGE_HISTORICO = 'cofrinho_historico';
+const STORAGE_POUPANCA = 'poupanca_saldo';
+const STORAGE_HIST_POUPANCA = 'poupanca_historico';
 
-let cobrancas = JSON.parse(localStorage.getItem(STORAGE_COBRANCAS)) || [];
-let investimentos = JSON.parse(localStorage.getItem(STORAGE_INVEST)) || 
-  Array(12).fill().map(() => ({ valor: "0.00", descricao: "" }));
+// Carrega tudo da memória
+let cobrancas = JSON.parse(localStorage.getItem(STORAGE_CLIENTES)) || [];
+let saldoCarteira = Number(localStorage.getItem(STORAGE_SALDO)) || 0;
+let historicoCarteira = JSON.parse(localStorage.getItem(STORAGE_HISTORICO)) || [];
+let saldoPoupanca = Number(localStorage.getItem(STORAGE_POUPANCA)) || 0;
+let historicoPoupanca = JSON.parse(localStorage.getItem(STORAGE_HIST_POUPANCA)) || [];
 
 let abaAtiva = 'atrasados';
-let modoAtivo = 'faturamento';
 let mesAtivo = new Date().getMonth();
 const nomesMeses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
 const formatarMoeda = v => Number(v||0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const getVencimentoDate = str => new Date(str + 'T00:00:00');
 
-function getVencimentoDate(str) {
-  const d = new Date(str + 'T00:00:00');
-  return isNaN(d) ? null : d;
-}
+/* =========================================
+   2. FUNÇÕES DO DASHBOARD (CLIENTES)
+   ========================================= */
 
-function gerarMenuMeses() {
-  const menu = document.getElementById('menu-meses');
-  menu.innerHTML = `
-    <div class="pasta-meses" id="pasta-meses-container">
-      <div class="pasta-header" onclick="document.getElementById('pasta-meses-container').classList.toggle('aberto')">
-        <span>📅 Selecionar Mês</span>
-        <span>▼</span>
-      </div>
-      <div class="sub-lista-meses">
-        ${nomesMeses.map((nome, i) => `
-          <button class="${i === mesAtivo && modoAtivo === 'faturamento' ? 'active' : ''}" 
-                  onclick="mesAtivo = ${i}; mudarModo('faturamento');">
-            ${nome}
-          </button>
-        `).join('')}
-      </div>
-    </div>
-  `;
-  document.getElementById('titulo-pagina').textContent = nomesMeses[mesAtivo];
-}
-
-function mudarModo(modo) {
-  modoAtivo = modo;
-  const viewC = document.getElementById('view-cobrancas');
-  const viewI = document.getElementById('view-investimentos');
-  const painel = document.getElementById('painel-resumo');
-
-  if (modo === 'investimentos') {
-    viewC.style.display = 'none'; viewI.style.display = 'block'; painel.style.display = 'none';
-    renderizarInvestimentos();
-  } else {
-    viewC.style.display = 'block'; viewI.style.display = 'none'; painel.style.display = 'grid';
-    atualizarTudoCobrancas();
-  }
-  gerarMenuMeses();
-}
-
-function mudarAba(aba) {
-  abaAtiva = aba;
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector(`[data-aba="${aba}"]`)?.classList.add('active');
-  renderizarCobrancas();
+function toggleSidebar() { document.getElementById('app-wrapper').classList.toggle('sidebar-closed'); }
+function toggleFormCadastro() { 
+    const m = document.getElementById('container-cadastro');
+    if(m) m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
 }
 
 function adicionarCobranca() {
-  const nome = document.getElementById('nome').value.trim();
-  const tel = document.getElementById('telefone').value.replace(/\D/g,'');
-  const val = Number(document.getElementById('valor').value);
-  const data = document.getElementById('data').value;
-  const rep = parseInt(document.getElementById('repetir').value);
-
-  if (!nome || !val || !data) return alert("Preencha tudo.");
-  const baseDate = getVencimentoDate(data);
-
-  for (let i = 0; i < rep; i++) {
-    const dv = new Date(baseDate);
-    dv.setDate(dv.getDate() + i * 7);
-    cobrancas.push({
-      id: Date.now() + i,
-      nome: rep > 1 ? `${nome} (${i+1}/${rep})` : nome,
-      telefone: tel,
-      valor: val.toFixed(2),
-      pagoParcial: "0.00",
-      data: dv.toISOString().split('T')[0],
-      pago: false
-    });
-  }
-  atualizarTudoCobrancas();
+    const nome = document.getElementById('nome').value;
+    const val = Number(document.getElementById('valor').value);
+    const data = document.getElementById('data').value;
+    const rep = parseInt(document.getElementById('repetir').value);
+    
+    if (!nome || !val || !data) return alert("Preencha tudo!");
+    
+    for (let i = 0; i < rep; i++) {
+        const d = getVencimentoDate(data); d.setDate(d.getDate() + (i * 7));
+        cobrancas.push({ 
+            id: Date.now() + i, 
+            nome: rep > 1 ? `${nome} (${i+1}/${rep})` : nome, 
+            telefone: document.getElementById('telefone').value, 
+            valor: val.toFixed(2), 
+            pagoParcial: "0.00", 
+            data: d.toISOString().split('T')[0], 
+            pago: false 
+        });
+    }
+    toggleFormCadastro(); atualizarTudo();
 }
 
-// NOVO: Função para enviar cobrança para o próximo mês
-function copiarParaProximoMes(id) {
-  const original = cobrancas.find(c => c.id === id);
-  if (!original) return;
+function togglePago(id) { 
+    const index = cobrancas.findIndex(c => c.id === id);
+    if (index === -1) return;
+    
+    const cliente = cobrancas[index];
+    const valorTotal = Number(cliente.valor);
+    const valorJaPago = Number(cliente.pagoParcial);
 
-  const dataOriginal = getVencimentoDate(original.data);
-  const dataNova = new Date(dataOriginal);
-  dataNova.setMonth(dataNova.getMonth() + 1);
-
-  const novaCobranca = {
-    ...original,
-    id: Date.now(),
-    data: dataNova.toISOString().split('T')[0],
-    pago: false,
-    pagoParcial: "0.00"
-  };
-
-  cobrancas.push(novaCobranca);
-  alert(`Cobrança de ${original.nome} copiada para ${nomesMeses[dataNova.getMonth()]}`);
-  atualizarTudoCobrancas();
-}
-
-function renderizarCobrancas() {
-  const lista = document.getElementById('listaPrincipal');
-  const busca = document.getElementById('buscaNome').value.toLowerCase().trim();
-  const hoje = new Date(); hoje.setHours(0,0,0,0);
-
-  const filtrados = cobrancas.filter(c => {
-    const matchNome = c.nome.toLowerCase().includes(busca);
-    if (!matchNome) return false;
-    if (busca !== "") return true;
-
-    const dv = getVencimentoDate(c.data);
-    if (!dv || dv.getMonth() !== mesAtivo) return false;
-
-    if (abaAtiva === 'atrasados') return !c.pago && dv < hoje;
-    if (abaAtiva === 'pendentes') return !c.pago && dv >= hoje;
-    if (abaAtiva === 'pagos') return c.pago;
-    if (abaAtiva === 'parcelados') return c.nome.includes('(');
-    return false;
-  });
-
-  const grupos = {};
-  filtrados.forEach(c => {
-    const base = c.nome.split(' (')[0].trim();
-    if (!grupos[base]) grupos[base] = [];
-    grupos[base].push(c);
-  });
-
-  lista.innerHTML = '';
-  Object.entries(grupos).forEach(([base, itens]) => {
-    const li = document.createElement('li');
-    if (itens.length > 1 || abaAtiva === 'parcelados' || busca !== "") {
-      li.className = 'item-agrupado';
-      const falta = itens.reduce((s, i) => s + (Number(i.valor) - Number(i.pagoParcial)), 0);
-      li.innerHTML = `
-        <div class="pasta-header" onclick="this.parentElement.classList.toggle('aberto')">
-          <span>📁 ${base} (${itens.length})</span>
-          <span style="color:${falta>0?'var(--danger)':'var(--success)'}">${falta>0?formatarMoeda(falta):'✓'}</span>
-        </div>
-        <div class="sub-lista">${itens.map(i => criarItemCobranca(i, hoje)).join('')}</div>`;
-      if (busca !== "") li.classList.add('aberto');
+    if (!cliente.pago) {
+        // PAGANDO: Soma apenas o que falta receber
+        const valorAReceber = valorTotal - valorJaPago;
+        if (valorAReceber > 0) {
+            cliente.pago = true;
+            cliente.pagoParcial = cliente.valor; 
+            registrarTransacaoCarteira('entrada', valorAReceber, `Recebido: ${cliente.nome}`);
+            alert(`R$ ${valorAReceber.toFixed(2)} entrou na Carteira!`);
+        }
     } else {
-      li.innerHTML = criarItemCobranca(itens[0], hoje);
+        // ESTORNO: Retira o valor TOTAL da dívida da carteira
+        cliente.pago = false;
+        cliente.pagoParcial = "0.00"; 
+        registrarTransacaoCarteira('saida', valorTotal, `Estorno: ${cliente.nome}`);
+        alert(`Pagamento desfeito. R$ ${valorTotal.toFixed(2)} retirado da Carteira.`);
     }
-    lista.appendChild(li);
-  });
+
+    cobrancas[index] = cliente;
+    atualizarTudo(); 
 }
 
-function criarItemCobranca(c, hoje) {
-  const dv = getVencimentoDate(c.data);
-  const total = Number(c.valor);
-  const pago = Number(c.pagoParcial || 0);
-  const falta = total - pago;
-  const pct = (pago / total) * 100;
-  const classe = c.pago ? 'pago-row' : (dv < hoje ? 'atrasado-row' : 'pendente-row');
+function registrarTransacaoCarteira(tipo, valor, descricao) {
+    // Garante que estamos lidando com números
+    valor = Number(valor);
+    
+    if (tipo === 'entrada') saldoCarteira += valor;
+    else saldoCarteira -= valor;
 
-  return `
-    <div class="${classe}" style="padding:15px;">
-      <div style="display:flex; justify-content:space-between;">
-        <div>
-          <strong>${c.nome}</strong><br>
-          <small>${nomesMeses[dv.getMonth()]} - ${c.data.split('-').reverse().join('/')}</small>
-        </div>
-        <div class="acoes">
-          <button class="btn-proximo" title="Copiar para Próximo Mês" onclick="copiarParaProximoMes(${c.id})">⏭️</button>
-          <button class="btn-whatsapp" onclick="enviarWhatsApp('${c.telefone}','${c.nome}','${falta}')">📲</button>
-          <button class="btn-editar" onclick="abrirModal(${c.id})">✏️</button>
-          <button class="btn-pagar" onclick="toggleStatus(${c.id})">${c.pago?'↩️':'✅'}</button>
-          <button class="btn-excluir" onclick="excluir(${c.id})">🗑️</button>
-        </div>
-      </div>
-      <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-top:10px;">
-        <span>Total: ${formatarMoeda(total)}</span>
-        <strong style="color:var(--danger)">Falta: ${formatarMoeda(falta)}</strong>
-      </div>
-      <div class="progress-container"><div class="progress-bar" style="width:${pct}%"></div></div>
-    </div>`;
+    historicoCarteira.unshift({
+        tipo: tipo === 'entrada' ? 'depositar' : 'sacar',
+        valor: valor,
+        descricao: descricao,
+        data: new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' })
+    });
+
+    localStorage.setItem(STORAGE_SALDO, saldoCarteira);
+    localStorage.setItem(STORAGE_HISTORICO, JSON.stringify(historicoCarteira));
+    
+    atualizarInterfaceEconomias();
 }
 
-// Suporte e Init
-function toggleStatus(id) {
-  cobrancas = cobrancas.map(c => c.id === id ? {...c, pago: !c.pago, pagoParcial: !c.pago ? c.valor : "0.00"} : c);
-  atualizarTudoCobrancas();
-}
-function excluir(id) { if (confirm("Excluir?")) { cobrancas = cobrancas.filter(c => c.id !== id); atualizarTudoCobrancas(); } }
+function renderizarLista() {
+    const lista = document.getElementById('listaPrincipal');
+    if (!lista) return; 
 
-function atualizarTudoCobrancas() {
-  localStorage.setItem(STORAGE_COBRANCAS, JSON.stringify(cobrancas));
-  let atr = 0, pen = 0, rec = 0;
-  const hoje = new Date(); hoje.setHours(0,0,0,0);
-  cobrancas.forEach(c => {
-    const dv = getVencimentoDate(c.data);
-    if (dv && dv.getMonth() === mesAtivo) {
-      const v = Number(c.valor), p = Number(c.pagoParcial);
-      rec += (c.pago ? v : p);
-      if (!c.pago) { if (dv < hoje) atr += (v-p); else pen += (v-p); }
+    const busca = document.getElementById('buscaNome').value.toLowerCase();
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    
+    const filtrados = cobrancas.filter(c => {
+        if (busca !== "") return c.nome.toLowerCase().includes(busca);
+        const dv = getVencimentoDate(c.data);
+        if (dv.getMonth() !== mesAtivo) return false;
+        if (abaAtiva === 'atrasados') return !c.pago && dv < hoje;
+        if (abaAtiva === 'pendentes') return !c.pago && dv >= hoje;
+        if (abaAtiva === 'pagos') return c.pago;
+        if (abaAtiva === 'parcelados') return c.nome.includes('(');
+        return false;
+    });
+
+    const grupos = {};
+    filtrados.forEach(c => {
+        const base = c.nome.split(' (')[0];
+        if (!grupos[base]) grupos[base] = [];
+        grupos[base].push(c);
+    });
+
+    lista.innerHTML = '';
+    Object.entries(grupos).forEach(([nome, itens]) => {
+        const li = document.createElement('li');
+        if (itens.length > 1 || abaAtiva === 'parcelados' || busca !== "") {
+            li.className = 'item-agrupado';
+            const faltaTotal = itens.reduce((acc, i) => acc + (Number(i.valor) - Number(i.pagoParcial)), 0);
+            li.innerHTML = `
+                <div class="pasta-header-parcela" onclick="this.parentElement.classList.toggle('aberto')">
+                    <span>📁 ${nome} (${itens.length})</span>
+                    <span style="background:var(--badge-bg); color:var(--badge-text); padding:4px 10px; border-radius:15px; font-size:0.8rem">${formatarMoeda(faltaTotal)}</span>
+                </div>
+                <div class="sub-lista">${itens.map(i => criarItemHTML(i, hoje)).join('')}</div>`;
+        } else {
+            li.innerHTML = criarItemHTML(itens[0], hoje);
+        }
+        lista.appendChild(li);
+    });
+}
+
+function criarItemHTML(c, hoje) {
+    const v = Number(c.valor), p = Number(c.pagoParcial), falta = v - p, dv = getVencimentoDate(c.data);
+    const classe = c.pago ? 'pago-row' : (dv < hoje ? 'atrasado-row' : 'pendente-row');
+    return `
+        <div class="${classe}" style="padding:15px; border-bottom:1px solid var(--border-color);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div><strong>${c.nome}</strong><br><small>${c.data.split('-').reverse().join('/')}</small></div>
+                <div class="acoes">
+                    <button class="btn-proximo" onclick="copiarProximo(${c.id})">⏭️</button>
+                    <button class="btn-whatsapp" onclick="window.open('https://wa.me/55${c.telefone.replace(/\D/g,'')}')">📲</button>
+                    <button class="btn-editar" onclick="abrirEdicao(${c.id})">✏️</button>
+                    <button class="btn-pagar" onclick="togglePago(${c.id})">${c.pago?'↩️':'✅'}</button>
+                    <button class="btn-excluir" onclick="excluir(${c.id})">🗑️</button>
+                </div>
+            </div>
+            <div class="progress-container"><div class="progress-bar" style="width:${(p/v)*100}%"></div></div>
+            <div class="info-valores">
+                <span style="color:var(--success)">Pago: ${formatarMoeda(p)}</span>
+                <span style="color:var(--danger)">Falta: ${formatarMoeda(falta)}</span>
+                <span style="color:var(--text-muted)">Total: ${formatarMoeda(v)}</span>
+            </div>
+        </div>`;
+}
+
+function abrirEdicao(id) {
+    const c = cobrancas.find(x => x.id === id);
+    if(c) {
+        document.getElementById('edit-id').value = c.id;
+        document.getElementById('edit-nome').value = c.nome;
+        document.getElementById('edit-valor').value = c.valor;
+        document.getElementById('edit-pago-parcial').value = c.pagoParcial;
+        document.getElementById('edit-data').value = c.data;
+        document.getElementById('modalEdicao').style.display = 'flex';
     }
-  });
-  document.getElementById('totalAtrasados').textContent = formatarMoeda(atr);
-  document.getElementById('totalPendentes').textContent = formatarMoeda(pen);
-  document.getElementById('totalRecebido').textContent = formatarMoeda(rec);
-  renderizarCobrancas();
-}
-
-function enviarWhatsApp(tel, nome, saldo) {
-  if (!tel) return alert("Sem telefone.");
-  window.open(`https://wa.me/55${tel}?text=Olá ${nome}, pendente: ${formatarMoeda(saldo)}`, '_blank');
-}
-
-function abrirModal(id) {
-  const c = cobrancas.find(x => x.id === id);
-  if (!c) return;
-  document.getElementById('edit-id').value = c.id;
-  document.getElementById('edit-nome').value = c.nome;
-  document.getElementById('edit-valor').value = c.valor;
-  document.getElementById('edit-pago-parcial').value = c.pagoParcial;
-  document.getElementById('edit-data').value = c.data;
-  document.getElementById('modalEdicao').style.display = 'flex';
 }
 function fecharModal() { document.getElementById('modalEdicao').style.display = 'none'; }
+
+// --- FUNÇÃO DE SALVAR EDIÇÃO COM ATUALIZAÇÃO DO EXTRATO ---
 function salvarEdicao() {
-  const id = Number(document.getElementById('edit-id').value);
-  cobrancas = cobrancas.map(c => {
-    if (c.id !== id) return c;
-    const v = document.getElementById('edit-valor').value;
-    const p = document.getElementById('edit-pago-parcial').value;
-    return { ...c, nome: document.getElementById('edit-nome').value, valor: v, pagoParcial: p, data: document.getElementById('edit-data').value, pago: Number(p) >= Number(v) };
-  });
-  fecharModal(); atualizarTudoCobrancas();
-}
+    const id = Number(document.getElementById('edit-id').value);
+    
+    // Novos valores
+    const novoNome = document.getElementById('edit-nome').value;
+    const novoValor = Number(document.getElementById('edit-valor').value);
+    const novoPago = Number(document.getElementById('edit-pago-parcial').value);
+    const novaData = document.getElementById('edit-data').value;
 
-function renderizarInvestimentos() {
-  const select = document.getElementById('mes-invest');
-  if (select.children.length <= 1) nomesMeses.forEach((m, i) => select.innerHTML += `<option value="${i}">${m}</option>`);
-  const valores = investimentos.map(i => Number(i.valor));
-  document.getElementById('total-investido-valor').textContent = formatarMoeda(valores.reduce((a,b)=>a+b,0));
-  const ctx = document.getElementById('graficoInvestimentos').getContext('2d');
-  if (window.meuGrafico) window.meuGrafico.destroy();
-  window.meuGrafico = new Chart(ctx, { type: 'doughnut', data: { labels: nomesMeses, datasets: [{ data: valores, backgroundColor: ['#1abc9c','#2ecc71','#3498db','#9b59b6','#34495e','#f1c40f','#e67e22','#e74c3c','#95a5a6','#d35400','#c0392b','#bdc3c7'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '70%' } });
-  const lista = document.getElementById('lista-investimentos');
-  lista.innerHTML = '';
-  investimentos.forEach((inv, idx) => { if (Number(inv.valor) > 0) lista.innerHTML += `<li style="display:flex; justify-content:space-between; background:#f8f9fa; padding:10px; margin-bottom:5px; border-radius:8px;"><span><strong>${nomesMeses[idx]}</strong><br><small>${inv.descricao}</small></span><span>${formatarMoeda(inv.valor)}</span></li>`; });
-}
+    // Busca o original
+    const index = cobrancas.findIndex(c => c.id === id);
+    if (index === -1) return;
+    const original = cobrancas[index];
+    const antigoPago = Number(original.pagoParcial);
 
-function adicionarInvestimento() {
-  const m = document.getElementById('mes-invest').value;
-  const v = document.getElementById('valor-invest').value;
-  if (m==="") return alert("Mês!");
-  investimentos[m] = { valor: Number(v).toFixed(2), descricao: document.getElementById('descricao-invest').value };
-  localStorage.setItem(STORAGE_INVEST, JSON.stringify(investimentos));
-  renderizarInvestimentos();
-}
-
-gerarMenuMeses();
-atualizarTudoCobrancas();
-document.getElementById('buscaNome').addEventListener('input', renderizarCobrancas);
-
-// Função para Exportar os Dados (Download de arquivo .json)
-function exportarDados() {
-  const dados = {
-    cobrancas: JSON.parse(localStorage.getItem(STORAGE_COBRANCAS)) || [],
-    investimentos: JSON.parse(localStorage.getItem(STORAGE_INVEST)) || []
-  };
-
-  const dataBlob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(dataBlob);
-  
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `backup_sistema_${new Date().toISOString().split('T')[0]}.json`;
-  link.click();
-  
-  URL.revokeObjectURL(url);
-}
-
-// Função para Importar os Dados (Leitura de arquivo .json)
-function importarDados(event) {
-  const arquivo = event.target.files[0];
-  if (!arquivo) return;
-
-  const leitor = new FileReader();
-  leitor.onload = function(e) {
-    try {
-      const dados = JSON.parse(e.target.result);
-      
-      if (confirm("Isso irá substituir todos os dados atuais. Deseja continuar?")) {
-        localStorage.setItem(STORAGE_COBRANCAS, JSON.stringify(dados.cobrancas));
-        localStorage.setItem(STORAGE_INVEST, JSON.stringify(dados.investimentos));
-        
-        // Recarregar a página para aplicar os dados
-        window.location.reload();
-      }
-    } catch (err) {
-      alert("Erro ao ler o arquivo de backup. Verifique se o formato está correto.");
+    // Calcula diferença e atualiza carteira
+    const diferenca = novoPago - antigoPago;
+    
+    if (diferenca !== 0) {
+        if (diferenca > 0) {
+            registrarTransacaoCarteira('entrada', diferenca, `Ajuste Manual: ${novoNome}`);
+        } else {
+            registrarTransacaoCarteira('saida', Math.abs(diferenca), `Correção Manual: ${novoNome}`);
+        }
     }
-  };
-  leitor.readAsText(arquivo);
+
+    // Atualiza objeto
+    cobrancas[index] = {
+        ...original,
+        nome: novoNome,
+        valor: novoValor.toFixed(2),
+        pagoParcial: novoPago.toFixed(2),
+        data: novaData,
+        pago: novoPago >= novoValor
+    };
+
+    fecharModal(); 
+    atualizarTudo();
+}
+
+function mudarAba(aba) {
+    abaAtiva = aba;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.querySelector(`[data-aba="${aba}"]`);
+    if(btn) btn.classList.add('active');
+    renderizarLista();
+}
+
+function atualizarTudo() {
+    localStorage.setItem(STORAGE_CLIENTES, JSON.stringify(cobrancas));
+    
+    const elTotal = document.getElementById('totalAtrasados');
+    if (!elTotal) return; 
+
+    let atr=0, pen=0, rec=0; const hoje = new Date();
+    cobrancas.forEach(c => {
+        const dv = getVencimentoDate(c.data);
+        if(dv.getMonth() === mesAtivo) {
+            const v = Number(c.valor), p = Number(c.pagoParcial);
+            rec += (c.pago ? v : p);
+            if(!c.pago) { if(dv < hoje) atr += (v-p); else pen += (v-p); }
+        }
+    });
+    
+    document.getElementById('totalAtrasados').textContent = formatarMoeda(atr);
+    document.getElementById('totalPendentes').textContent = formatarMoeda(pen);
+    document.getElementById('totalRecebido').textContent = formatarMoeda(rec);
+    gerarMenuMeses(); renderizarLista();
+    atualizarInterfaceEconomias();
+}
+
+function gerarMenuMeses() {
+    const menu = document.getElementById('menu-meses');
+    if(menu) {
+        menu.innerHTML = nomesMeses.map((m, i) => `<button class="${i === mesAtivo ? 'active' : ''}" onclick="mesAtivo=${i}; atualizarTudo();">${m}</button>`).join('');
+        const titulo = document.getElementById('titulo-pagina');
+        if(titulo) titulo.textContent = nomesMeses[mesAtivo];
+    }
+}
+
+function excluir(id) { if(confirm("Excluir?")) { cobrancas = cobrancas.filter(c => c.id !== id); atualizarTudo(); } }
+function copiarProximo(id) {
+    const c = cobrancas.find(x => x.id === id);
+    const d = getVencimentoDate(c.data); d.setMonth(d.getMonth() + 1);
+    cobrancas.push({...c, id: Date.now(), data: d.toISOString().split('T')[0], pago: false, pagoParcial: "0.00"});
+    atualizarTudo();
+}
+
+/* =========================================
+   3. GERENCIADOR DE ECONOMIAS (Carteira & Poupança)
+   ========================================= */
+
+function atualizarInterfaceEconomias() {
+    const formatadoCarteira = saldoCarteira.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const formatadoPoupanca = saldoPoupanca.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    // 1. Atualiza SALDOS (elementos de texto)
+    const telaCheiaSaldo = document.getElementById('saldo-tela-cheia');
+    if (telaCheiaSaldo) telaCheiaSaldo.textContent = formatadoCarteira;
+        
+    const elSaldoPoupanca = document.getElementById('saldo-poupanca');
+    if (elSaldoPoupanca) elSaldoPoupanca.textContent = formatadoPoupanca;
+    
+    const sidebarSaldo = document.getElementById('saldo-sidebar');
+    if (sidebarSaldo) sidebarSaldo.textContent = formatadoCarteira;
+
+    // 2. Atualiza EXTRATOS (Verifica se a div específica existe na tela)
+    if (document.getElementById('lista-extrato')) {
+        renderizarExtratoCarteira();
+    }
+    if (document.getElementById('extrato-poupanca')) {
+        renderizarExtratoPoupanca();
+    }
+}
+
+// --- Operações Manuais ---
+function realizarOperacao(tipo) {
+    const inputValor = document.getElementById('valor-operacao');
+    const inputDesc = document.getElementById('desc-operacao');
+    if(!inputValor) return;
+    const valor = parseFloat(inputValor.value.replace(',', '.'));
+
+    if (!valor || valor <= 0) return alert("⚠️ Valor inválido!");
+    if (tipo === 'sacar' && valor > saldoCarteira) return alert("🚫 Saldo insuficiente!");
+
+    registrarTransacaoCarteira(tipo === 'depositar' ? 'entrada' : 'saida', valor, inputDesc.value || (tipo === 'depositar' ? 'Depósito Manual' : 'Saída Manual'));
+    inputValor.value = ''; inputDesc.value = '';
+}
+
+function operarPoupanca(tipo) {
+    const inputValor = document.getElementById('valor-poupanca');
+    const inputDesc = document.getElementById('desc-poupanca');
+    if(!inputValor) return;
+    const valor = parseFloat(inputValor.value.replace(',', '.'));
+
+    if (!valor || valor <= 0) return alert("⚠️ Valor inválido!");
+    if (tipo === 'sacar' && valor > saldoPoupanca) return alert("🚫 Saldo insuficiente!");
+
+    if (tipo === 'depositar') saldoPoupanca += valor;
+    else saldoPoupanca -= valor;
+
+    historicoPoupanca.unshift({
+        tipo: tipo,
+        valor: valor,
+        descricao: inputDesc.value || (tipo === 'depositar' ? 'Investimento' : 'Resgate'),
+        data: new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' })
+    });
+
+    localStorage.setItem(STORAGE_POUPANCA, saldoPoupanca);
+    localStorage.setItem(STORAGE_HIST_POUPANCA, JSON.stringify(historicoPoupanca));
+    
+    inputValor.value = ''; inputDesc.value = '';
+    atualizarInterfaceEconomias();
+}
+
+// --- Renderização dos Extratos ---
+function renderizarExtratoCarteira() {
+    renderizarListaGenerica('lista-extrato', historicoCarteira, 'var(--success)', 'var(--danger)');
+}
+
+function renderizarExtratoPoupanca() {
+    renderizarListaGenerica('extrato-poupanca', historicoPoupanca, '#3498db', '#95a5a6', true);
+}
+
+function renderizarListaGenerica(elementId, listaDados, corEntrada, corSaida, isPoupanca = false) {
+    const container = document.getElementById(elementId);
+    if (!container) return; 
+    
+    container.innerHTML = '';
+    
+    if (listaDados.length === 0) {
+        container.innerHTML = '<p style="opacity:0.5; text-align:center; padding:20px;">Nenhuma movimentação.</p>';
+        return;
+    }
+
+    listaDados.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'item-extrato';
+        const isEntrada = item.tipo === 'depositar';
+        const cor = isEntrada ? corEntrada : corSaida;
+        const icone = isPoupanca 
+            ? (isEntrada ? '💎' : '💸') 
+            : (isEntrada ? '<i class="fa-solid fa-arrow-down" style="color:'+cor+'"></i>' : '<i class="fa-solid fa-arrow-up" style="color:'+cor+'"></i>');
+
+        div.innerHTML = `
+            <div style="display:flex; align-items:center; gap:15px;">
+                <div style="background:var(--bg-body); padding:10px; border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center;">${icone}</div>
+                <div><div style="font-weight:bold; color:var(--text-main);">${item.descricao}</div><div class="data-extrato">${item.data}</div></div>
+            </div>
+            <div style="font-weight:bold; color:${cor}">${isEntrada ? '+' : '-'} ${item.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+/* =========================================
+   4. INICIALIZAÇÃO E TEMA
+   ========================================= */
+function carregarTema() {
+    const temaSalvo = localStorage.getItem('tema_sistema');
+    if (temaSalvo === 'light') document.body.classList.add('light-mode');
+}
+function alternarTema() {
+    document.body.classList.toggle('light-mode');
+    localStorage.setItem('tema_sistema', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+}
+
+// Funções de Backup
+function exportarDados() {
+    const dados = {
+        clientes: localStorage.getItem(STORAGE_CLIENTES),
+        saldo: localStorage.getItem(STORAGE_SALDO),
+        hist: localStorage.getItem(STORAGE_HISTORICO),
+        saldoP: localStorage.getItem(STORAGE_POUPANCA),
+        histP: localStorage.getItem(STORAGE_HIST_POUPANCA)
+    };
+    const blob = new Blob([JSON.stringify(dados)], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `backup_sistema_2026_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+}
+
+function importarDados(event) {
+    const file = event.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const dados = JSON.parse(e.target.result);
+            if(dados.clientes) localStorage.setItem(STORAGE_CLIENTES, dados.clientes);
+            if(dados.saldo) localStorage.setItem(STORAGE_SALDO, dados.saldo);
+            if(dados.hist) localStorage.setItem(STORAGE_HISTORICO, dados.hist);
+            if(dados.saldoP) localStorage.setItem(STORAGE_POUPANCA, dados.saldoP);
+            if(dados.histP) localStorage.setItem(STORAGE_HIST_POUPANCA, dados.histP);
+            alert("Backup restaurado com sucesso!");
+            location.reload();
+        } catch(err) { alert("Erro ao ler arquivo de backup."); }
+    };
+    reader.readAsText(file);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    carregarTema();
+    atualizarTudo(); 
+    atualizarInterfaceEconomias(); 
+    
+    const busca = document.getElementById('buscaNome');
+    if(busca) busca.addEventListener('input', renderizarLista);
+});
+
+// --- FUNÇÃO DE TROCA DE ABAS (Cole no final do script.js) ---
+function mudarAbaEconomia(aba) {
+    // 1. Pega os elementos da tela
+    const abaCarteira = document.getElementById('aba-carteira');
+    const abaPoupanca = document.getElementById('aba-poupanca');
+    const botoes = document.querySelectorAll('.tab-eco');
+
+    // 2. Proteção: Se não achar os elementos, para aqui para não dar erro
+    if (!abaCarteira || !abaPoupanca) {
+        console.error("Erro: As divs 'aba-carteira' ou 'aba-poupanca' não foram encontradas no HTML.");
+        return;
+    }
+
+    // 3. Esconde tudo primeiro
+    abaCarteira.style.display = 'none';
+    abaPoupanca.style.display = 'none';
+    
+    // 4. Remove a cor 'active' de todos os botões
+    botoes.forEach(btn => btn.classList.remove('active'));
+
+    // 5. Mostra a aba certa e pinta o botão certo
+    if (aba === 'carteira') {
+        abaCarteira.style.display = 'block';
+        if(botoes[0]) botoes[0].classList.add('active'); // Pinta o 1º botão
+    } else {
+        abaPoupanca.style.display = 'block';
+        if(botoes[1]) botoes[1].classList.add('active'); // Pinta o 2º botão
+    }
+
+    // 6. Atualiza os saldos na tela
+    atualizarInterfaceEconomias();
 }
