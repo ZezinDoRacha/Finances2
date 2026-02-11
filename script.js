@@ -47,18 +47,14 @@ function atualizarTotais() {
     cobrancas.forEach(c => {
         const v = parseFloat(c.valor);
         const dataVenc = new Date(c.data + 'T00:00:00');
-
-        if (c.pago) {
-            recebido += v;
-        } else {
-            if (dataVenc < hoje) atrasado += v;
-            else pendente += v;
-        }
+        if (c.pago) recebido += v;
+        else dataVenc < hoje ? atrasado += v : pendente += v;
     });
 
-    document.getElementById('totalAtrasados').innerText = `R$ ${atrasado.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-    document.getElementById('totalPendentes').innerText = `R$ ${pendente.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-    document.getElementById('totalRecebido').innerText = `R$ ${recebido.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+    const format = (v) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, style: 'currency', currency: 'BRL' });
+    document.getElementById('totalAtrasados').innerText = format(atrasado);
+    document.getElementById('totalPendentes').innerText = format(pendente);
+    document.getElementById('totalRecebido').innerText = format(recebido);
 }
 
 function renderizar() {
@@ -67,7 +63,7 @@ function renderizar() {
     lista.innerHTML = '';
     const hoje = new Date(); hoje.setHours(0,0,0,0);
 
-    const filtrados = cobrancas.filter(c => {
+    let filtrados = cobrancas.filter(c => {
         const dv = new Date(c.data + 'T00:00:00');
         const atendeBusca = c.nome.toLowerCase().includes(busca);
         let atendeAba = false;
@@ -80,24 +76,60 @@ function renderizar() {
         return atendeBusca && atendeAba;
     });
 
-    filtrados.sort((a,b) => new Date(a.data) - new Date(b.data)).forEach(c => {
-        const dv = new Date(c.data + 'T00:00:00');
-        const dataBR = c.data.split('-').reverse().join('/');
-        const li = document.createElement('li');
-        
-        if (c.pago) li.classList.add('pagamento-confirmado');
-        else if (dv < hoje) li.classList.add('atrasado');
-        else li.classList.add('pendente-no-prazo');
+    const grupos = {};
+    filtrados.forEach(c => {
+        const nomeBase = c.nome.split(' (')[0];
+        if (!grupos[nomeBase]) grupos[nomeBase] = [];
+        grupos[nomeBase].push(c);
+    });
 
-        li.innerHTML = `
-            <div><strong>${c.nome}</strong><br><small>R$ ${c.valor} | ${dataBR}</small></div>
-            <div class="acoes">
-                ${!c.pago ? `<button class="btn-whatsapp" onclick="enviar('${c.telefone}','${c.nome}','${c.valor}','${dataBR}')">📲</button>` : ''}
-                <button class="btn-editar" onclick="prepararEdicao(${c.id})">✏️</button>
-                <button class="btn-pagar" onclick="status(${c.id})">${c.pago ? '↩️' : '✅'}</button>
-                <button class="btn-excluir" onclick="excluir(${c.id})">🗑️</button>
-            </div>`;
-        lista.appendChild(li);
+    Object.keys(grupos).forEach(nomeCliente => {
+        const itens = grupos[nomeCliente];
+        const eParcelado = itens.some(i => i.nome.includes('('));
+
+        if (eParcelado) {
+            const li = document.createElement('li');
+            li.className = 'item-agrupado';
+            const totalVal = itens.reduce((acc, cur) => acc + parseFloat(cur.valor), 0);
+            
+            li.innerHTML = `
+                <div class="pasta-header" onclick="this.parentElement.classList.toggle('aberto')">
+                    <span>📁 ${nomeCliente} (${itens.length}x)</span>
+                    <span>R$ ${totalVal.toFixed(2)} <span class="seta-pasta">▼</span></span>
+                </div>
+                <div class="sub-lista">
+                    ${itens.map(i => {
+                        const dvParcela = new Date(i.data + 'T00:00:00');
+                        let corLinha = i.pago ? "pago-row" : (dvParcela < hoje ? "atrasado-row" : "pendente-row");
+                        return `
+                        <div class="parcela-linha ${corLinha}">
+                            <span><strong>${i.nome.match(/\((.*?)\)/)[0]}</strong> - ${i.data.split('-').reverse().join('/')} <b>R$ ${i.valor}</b></span>
+                            <div class="acoes">
+                                <button class="btn-whatsapp" onclick="enviar('${i.telefone}','${i.nome}','${i.valor}','${i.data}')">📲</button>
+                                <button class="btn-pagar" onclick="status(${i.id})">${i.pago ? '↩️' : '✅'}</button>
+                                <button class="btn-excluir" onclick="excluir(${i.id})">🗑️</button>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>`;
+            lista.appendChild(li);
+        } else {
+            itens.forEach(c => {
+                const dv = new Date(c.data + 'T00:00:00');
+                const li = document.createElement('li');
+                li.className = c.pago ? 'pagamento-confirmado' : (dv < hoje ? 'atrasado' : 'pendente-no-prazo');
+                li.style.padding = "15px"; li.style.flexDirection = "row"; li.style.justifyContent = "space-between"; li.style.alignItems = "center";
+                li.innerHTML = `
+                    <div><strong>${c.nome}</strong><br><small>R$ ${c.valor} | ${c.data.split('-').reverse().join('/')}</small></div>
+                    <div class="acoes">
+                        ${!c.pago ? `<button class="btn-whatsapp" onclick="enviar('${c.telefone}','${c.nome}','${c.valor}','${c.data}')">📲</button>` : ''}
+                        <button class="btn-editar" onclick="prepararEdicao(${c.id})">✏️</button>
+                        <button class="btn-pagar" onclick="status(${c.id})">${c.pago ? '↩️' : '✅'}</button>
+                        <button class="btn-excluir" onclick="excluir(${c.id})">🗑️</button>
+                    </div>`;
+                lista.appendChild(li);
+            });
+        }
     });
 }
 
@@ -108,7 +140,7 @@ function prepararEdicao(id) {
     document.getElementById('telefone').value = c.telefone;
     document.getElementById('valor').value = c.valor;
     document.getElementById('data').value = c.data;
-    if(confirm("Dados carregados para o topo. Remover o registro antigo para atualizar ao salvar?")) {
+    if(confirm("Deseja editar? O registro original será removido.")) {
         cobrancas = cobrancas.filter(item => item.id !== id);
         salvarEAtualizar();
         window.scrollTo(0,0);
@@ -121,11 +153,15 @@ function status(id) {
 }
 
 function excluir(id) { 
-    if(confirm("Excluir esta cobrança?")) { cobrancas = cobrancas.filter(c => c.id !== id); salvarEAtualizar(); } 
+    if(confirm("Excluir esta cobrança?")) { 
+        cobrancas = cobrancas.filter(c => c.id !== id); 
+        salvarEAtualizar(); 
+    } 
 }
 
 function enviar(tel, n, v, d) {
-    const m = encodeURIComponent(`Olá ${n}, lembrete de pagamento: R$ ${v} para o dia ${d}.`);
+    const dataFormat = d.split('-').reverse().join('/');
+    const m = encodeURIComponent(`Olá ${n}, lembrete de pagamento: R$ ${v} para o dia ${dataFormat}.`);
     window.open(`https://wa.me/${tel ? '55'+tel : ''}?text=${m}`, '_blank');
 }
 
@@ -135,7 +171,7 @@ function exportarExcel() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "relatorio.csv";
+    link.download = `relatorio.csv`;
     link.click();
 }
 
