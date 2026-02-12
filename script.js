@@ -468,3 +468,30 @@ function mudarAbaEconomia(aba) {
     // 6. Atualiza os saldos na tela
     atualizarInterfaceEconomias();
 }
+
+/* =========================================
+   FUNÇÃO DE RESET TOTAL (4 ETAPAS)
+   ========================================= */
+function resetarSistema() {
+    // ETAPA 1: Pergunta simples
+    if (!confirm("⚠️ ATENÇÃO: Você solicitou o reset total do sistema.\n\nDeseja continuar?")) return;
+
+    // ETAPA 2: Aviso de consequência
+    if (!confirm("⛔ PERIGO: Essa ação apagará PERMANENTEMENTE:\n\n- Todos os clientes e cobranças\n- Todo o saldo da Carteira e Poupança\n- Todo o histórico de transações\n\nNADA poderá ser recuperado.")) return;
+
+    // ETAPA 3: Última chance
+    if (!confirm("Tem certeza absoluta? Se você clicar em 'OK', não haverá como voltar atrás.")) return;
+
+    // ETAPA 4: Trava de Segurança (Digitação)
+    const prova = prompt("🔒 TRAVA DE SEGURANÇA:\n\nPara confirmar a exclusão total, digite a palavra: ZERAR");
+
+    if (prova && prova.toUpperCase() === "ZERAR") {
+        // O comando nuclear:
+        localStorage.clear();
+        
+        alert("♻️ Sistema formatado com sucesso.\nO aplicativo será reiniciado como novo.");
+        window.location.href = "index.html"; // Recarrega a página do zero
+    } else {
+        alert("❌ Ação cancelada.\nA palavra de segurança estava incorreta ou você desistiu.");
+    }
+}

@@ -374,3 +374,28 @@ body.light-mode .pago-row { background: #f0fdf4; border-left: 4px solid var(--su
 .tab-eco i {
     margin-right: 8px;
 }
+
+
+/* Botão de Reset Nuclear */
+.btn-reset {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(145deg, #c0392b, #a93226);
+    color: white;
+    border: 1px solid #e74c3c;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    margin-top: 10px;
+}
+
+.btn-reset:hover {
+    background: #e74c3c;
+    transform: scale(0.98);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    border-color: #ff7675;
+}
