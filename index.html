@@ -3,55 +3,51 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Gestão Financeira 2026</title>
-  
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
-  
+  <title></title>
   <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
 </head>
+<body>
+
 <body>
 
 <div class="app-container" id="app-wrapper">
   
   <div id="overlay-mobile" onclick="toggleSidebar()"></div>
 
-  <button id="toggle-sidebar" onclick="toggleSidebar()">
-    <span style="font-size: 1.2rem;">☰</span>
-  </button>
+  <button id="toggle-sidebar" onclick="toggleSidebar()">☰</button>
 
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <h2>SISTEMA 2026</h2>
-    </div>
+    <div class="sidebar-header"><h2></h2></div>
+    
+    <div class="botoes-financeiros">
+    
+    <button onclick="window.location.href='economias.html'" class="btn-card btn-economias">
+        <i class="fa-solid fa-piggy-bank"></i>
+        <span>🐷Economias🐷</span>
+    </button>
 
-    <div class="cofrinho-card" onclick="window.location.href='economias.html'" style="cursor: pointer;">
-      <div class="cofrinho-header">
-        <span>🐷 Minhas Economias</span>
-      </div>
-      <p id="saldo-sidebar">R$ 0,00</p>
-      <button>Gerenciar Carteira</button>
-    </div>
+    <button onclick="window.location.href='despesas.html'" class="btn-card btn-despesas">
+        <i class="fa-solid fa-file-invoice-dollar"></i>
+        <span>💸Despesas💸</span>
+    </button>
+
 
     <nav id="menu-meses" class="menu-meses-grid"></nav>
 
-    <div class="sidebar-footer" style="margin-top: auto; padding-top: 20px;">
-      
-      <button id="btn-tema" onclick="alternarTema()" class="btn-backup" style="margin-bottom: 10px; text-align: center; justify-content: center;">
-        🌗 Alternar Tema
+    <div class="backup-area">
+      <button id="btn-tema" onclick="alternarTema()" style="width:100%; padding:12px; margin-bottom:15px; background:var(--primary); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:10px;">
+        🌗 Mudar Tema
       </button>
 
-      <div class="backup-area" style="display: flex; gap: 5px; margin-bottom: 15px;">
-        <button class="btn-backup" onclick="exportarDados()" title="Salvar Backup">💾 Salvar</button>
-        <button class="btn-backup" onclick="document.getElementById('input-import').click()" title="Carregar Backup">📂 Abrir</button>
-        <input type="file" id="input-import" style="display:none" onchange="importarDados(event)" accept=".json">
-      </div>
-
-      <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 15px 0;"></div>
+      <button class="btn-backup" onclick="exportarDados()">💾 Exportar Backup</button>
+      <button class="btn-backup" onclick="document.getElementById('input-import').click()">📂 Importar Backup</button>
+      <input type="file" id="input-import" style="display:none" onchange="importarDados(event)" accept=".json">
+      
+      <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 15px 0;">
 
       <button class="btn-reset" onclick="resetarSistema()">
-        ☠️ ZERAR TUDO
+          ☠️ ZERAR TUDO
       </button>
     </div>
   </aside>
@@ -62,38 +58,46 @@
       
       <div class="dashboard" id="painel-resumo">
         <div class="card card-atrasado">
-          <h3>🔴 Atrasado</h3>
-          <p id="totalAtrasados">R$ 0,00</p>
+            <h3>🔴 Atrasado</h3>
+            <p id="totalAtrasados">R$ 0,00</p>
         </div>
         <div class="card card-pendente">
-          <h3>🟠 Restante</h3>
-          <p id="totalPendentes">R$ 0,00</p>
+            <h3>🟠 Restante</h3>
+            <p id="totalPendentes">R$ 0,00</p>
         </div>
         <div class="card card-recebido">
-          <h3>🟢 Recebido</h3>
-          <p id="totalRecebido">R$ 0,00</p>
+            <h3>🟢 Recebido</h3>
+            <p id="totalRecebido">R$ 0,00</p>
         </div>
+      </div>
+
+      <button id="btn-abrir-cadastro" onclick="toggleFormCadastro()">
+          <span class="btn-text">Novo Cadastro</span>
+          <span class="btn-icon">➕</span>
+      </button>
+
+      <div class="busca-container">
+        <input type="text" id="buscaNome" placeholder="🔍 Buscar cliente em tudo...">
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-aba="atrasados" onclick="mudarAba('atrasados')">🔴 Devendo</button>
+        <button class="tab-btn" data-aba="pendentes" onclick="mudarAba('pendentes')">🟠 A Pagar</button>
+        <button class="tab-btn" data-aba="pagos" onclick="mudarAba('pagos')">🟢 Pagos</button>
+        <button class="tab-btn" data-aba="parcelados" onclick="mudarAba('parcelados')">📅 Parcelados</button>
       </div>
     </header>
 
-    <button id="btn-abrir-cadastro" onclick="toggleFormCadastro()">
-      <span class="btn-text">Novo Cadastro</span>
-      <span class="btn-icon">➕</span>
-    </button>
-
-    <div class="busca-container">
-      <input type="text" id="buscaNome" placeholder="🔍 Buscar cliente, valor ou data...">
-    </div>
-
-    <div class="tabs">
-      <button class="tab-btn active" data-aba="atrasados" onclick="mudarAba('atrasados')">🔴 Devendo</button>
-      <button class="tab-btn" data-aba="pendentes" onclick="mudarAba('pendentes')">🟠 A Pagar</button>
-      <button class="tab-btn" data-aba="pagos" onclick="mudarAba('pagos')">🟢 Pagos</button>
-      <button class="tab-btn" data-aba="parcelados" onclick="mudarAba('parcelados')">📅 Parcelados</button>
-    </div>
-
     <ul id="listaPrincipal"></ul>
   </main>
+</div>
+
+<div id="modalWhatsapp" class="modal-geral">
+  <div class="modal-content">
+    <span class="close-modal" onclick="fecharModalWhats()">&times;</span>
+    <h3 id="whats-titulo" style="margin-bottom: 15px;">Enviar Mensagem</h3>
+    <div id="lista-mensagens" style="display: flex; flex-direction: column; gap: 10px;"></div>
+  </div>
 </div>
 
 <div id="container-cadastro" class="modal-geral">
@@ -102,21 +106,18 @@
     <h3>Novo Lançamento</h3>
     <div class="form-grid">
       <input type="text" id="nome" placeholder="Nome do Cliente">
-      <input type="tel" id="telefone" placeholder="WhatsApp (Opcional)">
-      
+      <input type="tel" id="telefone" placeholder="WhatsApp">
       <div style="display:flex; gap:10px;">
-        <input type="number" id="valor" placeholder="Valor (R$)" style="flex:1">
+        <input type="number" id="valor" placeholder="Valor Total" style="flex:1">
         <input type="date" id="data" style="flex:1">
       </div>
-      
       <select id="repetir">
-        <option value="1">Cobrança Única</option>
-        <option value="4">4× (Semanal)</option>
-        <option value="8">8× (Semanal)</option>
-        <option value="12">12× (Semanal)</option>
+        <option value="1">Única</option>
+        <option value="4">4× semanal</option>
+        <option value="8">8× semanal</option>
+        <option value="12">12× semanal</option>
       </select>
-      
-      <button class="btn-acao-principal" onclick="adicionarCobranca()">✅ Confirmar Cadastro</button>
+      <button class="btn-acao-principal" onclick="adicionarCobranca()">Cadastrar</button>
     </div>
   </section>
 </div>
@@ -126,48 +127,14 @@
     <span class="close-modal" onclick="fecharModal()">×</span>
     <h3>Editar Lançamento</h3>
     <input type="hidden" id="edit-id">
-    
     <div class="form-edit">
-      <label style="font-size: 0.85rem; color: var(--text-muted);">Nome do Cliente</label>
-      <input type="text" id="edit-nome">
-      
-      <div style="display:flex; gap:10px; margin-top: 10px;">
-        <div style="flex:1">
-          <label style="font-size: 0.85rem; color: var(--text-muted);">Valor Total</label>
-          <input type="number" id="edit-valor" step="0.01">
-        </div>
-        <div style="flex:1">
-          <label style="font-size: 0.85rem; color: var(--text-muted);">Já Pago</label>
-          <input type="number" id="edit-pago-parcial" step="0.01">
-        </div>
+      <label>Nome</label><input type="text" id="edit-nome">
+      <div style="display:flex; gap:10px;">
+        <div style="flex:1"><label>Total</label><input type="number" id="edit-valor" step="0.01"></div>
+        <div style="flex:1"><label>Pago</label><input type="number" id="edit-pago-parcial" step="0.01"></div>
       </div>
-      
-      <label style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px; display:block;">Data de Vencimento</label>
-      <input type="date" id="edit-data">
-      
-      <button class="btn-salvar-modal" onclick="salvarEdicao()" style="margin-top: 20px;">💾 Salvar Alterações</button>
-    </div>
-  </div>
-</div>
-
-<div id="modalCofrinho" class="modal-geral">
-  <div class="modal-content">
-    <span class="close-modal" onclick="fecharModalCofrinho()">×</span>
-    <h3>🐷 Gerenciar Economias</h3>
-    
-    <div style="background:var(--bg-input); padding:20px; border-radius:15px; text-align:center; margin-bottom:25px; border:1px solid var(--border-color)">
-      <small style="text-transform: uppercase; color: var(--text-muted); font-size: 0.8rem;">Saldo Disponível</small>
-      <h2 id="saldo-modal" style="color:var(--primary); font-size: 2.5rem; margin: 5px 0 0 0;">R$ 0,00</h2>
-    </div>
-
-    <div class="form-grid">
-      <input type="number" id="valor-cofrinho" placeholder="Valor (R$)">
-      <input type="text" id="motivo-cofrinho" placeholder="Motivo (Opcional)">
-      
-      <div style="display:flex; gap:10px; margin-top:15px;">
-        <button class="btn-acao-principal" style="background:var(--success); flex:1" onclick="operarCofrinho('depositar')">⬇️ Depositar</button>
-        <button class="btn-acao-principal" style="background:var(--danger); flex:1" onclick="operarCofrinho('sacar')">⬆️ Sacar</button>
-      </div>
+      <label>Data</label><input type="date" id="edit-data">
+      <button class="btn-salvar-modal" onclick="salvarEdicao()">Atualizar Dados</button>
     </div>
   </div>
 </div>

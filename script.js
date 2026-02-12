@@ -157,7 +157,9 @@ function criarItemHTML(c, hoje) {
                 <div><strong>${c.nome}</strong><br><small>${c.data.split('-').reverse().join('/')}</small></div>
                 <div class="acoes">
                     <button class="btn-proximo" onclick="copiarProximo(${c.id})">⏭️</button>
-                    <button class="btn-whatsapp" onclick="window.open('https://wa.me/55${c.telefone.replace(/\D/g,'')}')">📲</button>
+                    <button onclick="abrirMenuWhats(${c.id})" class="btn-whatsapp">
+    <i class="fab fa-whatsapp">📲</i>
+</button>
                     <button class="btn-editar" onclick="abrirEdicao(${c.id})">✏️</button>
                     <button class="btn-pagar" onclick="togglePago(${c.id})">${c.pago?'↩️':'✅'}</button>
                     <button class="btn-excluir" onclick="excluir(${c.id})">🗑️</button>
@@ -581,4 +583,86 @@ function abrirModalResgate() {
     
     alert(`✅ R$ ${numValor.toFixed(2)} voltaram para sua Carteira!`);
     atualizarInterfaceEconomias();
+}
+
+function abrirMenuWhats(id) {
+    const c = cobrancas.find(x => x.id === id);
+    if (!c) return;
+
+    const modal = document.getElementById('modalWhatsapp');
+    const lista = document.getElementById('lista-mensagens');
+    const titulo = document.getElementById('whats-titulo');
+    
+    // Dados Dinâmicos
+    const primeiroNome = c.nome.split(' ')[0];
+    const valorTotal = Number(c.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const valorPago = Number(c.pagoParcial).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const saldoDevedor = (Number(c.valor) - Number(c.pagoParcial)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    titulo.innerText = `Mensagem para ${primeiroNome}`;
+    lista.innerHTML = ''; 
+
+    // Mensagens Padrão (Suas sugestões)
+    let opcoes = [
+        { 
+            titulo: "💳 Dia do Vencimento", 
+            texto: `Bom dia ${primeiroNome} 😊\n\nHoje é o dia da mensalidade no valor de ${valorTotal} 💳\n\nFico no aguardo da confirmação 👍` 
+        },
+        { 
+            titulo: "⚠️ Lembrete em Aberto", 
+            texto: `Bom dia 😊\n\nPercebemos que a mensalidade está em aberto 💳\n\nSabemos que imprevistos acontecem, então se precisar conversar é só me chamar 👍\n\nFico à disposição 🙏` 
+        },
+        { 
+            titulo: "🤝 Negociação", 
+            texto: `Bom dia 😊\n\nSobre a mensalidade em aberto 💳\n\nCaso precise negociar o pagamento, podemos conversar 👍\n\nFico à disposição 🙏` 
+        },
+        { 
+            titulo: "🔄 Novo Vencimento", 
+            texto: `Boa tarde 🙂\n\nConforme combinado, atualizamos o vencimento da mensalidade 📅\n\nQualquer dúvida é só me chamar 👍` 
+        }
+    ];
+
+    // --- LÓGICA DE STATUS ESPECÍFICOS ---
+
+    // Caso 1: Pagamento Parcial (Pagou algo, mas não tudo)
+    if (Number(c.pagoParcial) > 0 && !c.pago) {
+        opcoes.unshift({
+            titulo: "🌗 Saldo Restante",
+            texto: `Oi ${primeiroNome}! Recebi o valor parcial de ${valorPago}. ✅\n\nPassando apenas para lembrar que o saldo restante é de ${saldoDevedor}. Qualquer dúvida me avise! 👍`
+        });
+    }
+
+    // Caso 2: Totalmente Pago
+    if (c.pago) {
+        opcoes = [
+            {
+                titulo: "✅ Agradecer Pagamento",
+                texto: `Oi ${primeiroNome}! Recebi seu pagamento de ${valorTotal}. Muito obrigado, já dei baixa aqui! 👍`
+            },
+            {
+                titulo: "🔄 Novo Vencimento",
+                texto: `Boa tarde 🙂\n\nConforme combinado, atualizamos o vencimento da mensalidade para o próximo mês. 📅\n\nQualquer dúvida é só me chamar 👍`
+            }
+        ];
+    }
+
+    // Renderização dos Botões
+    opcoes.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-acao-principal'; 
+        btn.style.textAlign = 'left';
+        btn.style.padding = '15px';
+        btn.style.marginBottom = '5px';
+        
+        btn.innerHTML = `<strong>${opt.titulo}</strong><br><small style="display:block; margin-top:5px; opacity:0.7; line-height:1.2">${opt.texto.substring(0, 60)}...</small>`;
+        
+        btn.onclick = () => {
+            const link = `https://wa.me/55${c.telefone.replace(/\D/g,'')}?text=${encodeURIComponent(opt.texto)}`;
+            window.open(link, '_blank');
+            fecharModalWhats();
+        };
+        lista.appendChild(btn);
+    });
+
+    modal.style.display = 'flex';
 }
