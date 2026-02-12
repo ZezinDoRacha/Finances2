@@ -63,20 +63,21 @@ function togglePago(id) {
     const valorJaPago = Number(cliente.pagoParcial);
 
     if (!cliente.pago) {
-        // PAGANDO: Soma apenas o que falta receber
+        // PAGANDO: Soma apenas o que falta
         const valorAReceber = valorTotal - valorJaPago;
         if (valorAReceber > 0) {
             cliente.pago = true;
             cliente.pagoParcial = cliente.valor; 
             registrarTransacaoCarteira('entrada', valorAReceber, `Recebido: ${cliente.nome}`);
-            alert(`R$ ${valorAReceber.toFixed(2)} entrou na Carteira!`);
         }
     } else {
-        // ESTORNO: Retira o valor TOTAL da dívida da carteira
+        // ESTORNO: Retira apenas o que de fato estava como pago
+        if (valorJaPago > 0) {
+            registrarTransacaoCarteira('saida', valorJaPago, `Estorno: ${cliente.nome}`);
+            alert(`Estorno realizado: R$ ${valorJaPago.toFixed(2)} removido da carteira.`);
+        }
         cliente.pago = false;
         cliente.pagoParcial = "0.00"; 
-        registrarTransacaoCarteira('saida', valorTotal, `Estorno: ${cliente.nome}`);
-        alert(`Pagamento desfeito. R$ ${valorTotal.toFixed(2)} retirado da Carteira.`);
     }
 
     cobrancas[index] = cliente;
@@ -259,9 +260,20 @@ function atualizarTudo() {
 function gerarMenuMeses() {
     const menu = document.getElementById('menu-meses');
     if(menu) {
-        menu.innerHTML = nomesMeses.map((m, i) => `<button class="${i === mesAtivo ? 'active' : ''}" onclick="mesAtivo=${i}; atualizarTudo();">${m}</button>`).join('');
+        menu.innerHTML = nomesMeses.map((m, i) => `
+            <button class="${i === mesAtivo ? 'active' : ''}" 
+                    onclick="mesAtivo=${i}; atualizarTudo(); fecharSidebarMobile();">
+                ${m}
+            </button>`).join('');
         const titulo = document.getElementById('titulo-pagina');
         if(titulo) titulo.textContent = nomesMeses[mesAtivo];
+    }
+}
+
+// Nova função auxiliar
+function fecharSidebarMobile() {
+    if (window.innerWidth <= 768) {
+        document.getElementById('app-wrapper').classList.add('sidebar-closed');
     }
 }
 
@@ -354,7 +366,6 @@ function renderizarListaGenerica(elementId, listaDados, corEntrada, corSaida, is
     if (!container) return; 
     
     container.innerHTML = '';
-    
     if (listaDados.length === 0) {
         container.innerHTML = '<p style="opacity:0.5; text-align:center; padding:20px;">Nenhuma movimentação.</p>';
         return;
@@ -363,18 +374,26 @@ function renderizarListaGenerica(elementId, listaDados, corEntrada, corSaida, is
     listaDados.forEach(item => {
         const div = document.createElement('div');
         div.className = 'item-extrato';
-        const isEntrada = item.tipo === 'depositar';
+        const isEntrada = item.tipo === 'depositar' || item.tipo === 'entrada'; // Normalização de tipos
         const cor = isEntrada ? corEntrada : corSaida;
-        const icone = isPoupanca 
-            ? (isEntrada ? '💎' : '💸') 
-            : (isEntrada ? '<i class="fa-solid fa-arrow-down" style="color:'+cor+'"></i>' : '<i class="fa-solid fa-arrow-up" style="color:'+cor+'"></i>');
+        
+        // Garante que o valor é um Number para o toLocaleString não falhar
+        const valorFormatado = Number(item.valor).toLocaleString('pt-BR', { 
+            style: 'currency', 
+            currency: 'BRL' 
+        });
 
         div.innerHTML = `
             <div style="display:flex; align-items:center; gap:15px;">
-                <div style="background:var(--bg-body); padding:10px; border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center;">${icone}</div>
-                <div><div style="font-weight:bold; color:var(--text-main);">${item.descricao}</div><div class="data-extrato">${item.data}</div></div>
+                <div style="background:var(--bg-body); padding:10px; border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center;">
+                    ${isEntrada ? '⬇️' : '⬆️'}
+                </div>
+                <div>
+                    <div style="font-weight:bold; color:var(--text-main);">${item.descricao}</div>
+                    <div class="data-extrato">${item.data}</div>
+                </div>
             </div>
-            <div style="font-weight:bold; color:${cor}">${isEntrada ? '+' : '-'} ${item.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
+            <div style="font-weight:bold; color:${cor}">${isEntrada ? '+' : '-'} ${valorFormatado}</div>
         `;
         container.appendChild(div);
     });
@@ -494,4 +513,72 @@ function resetarSistema() {
     } else {
         alert("❌ Ação cancelada.\nA palavra de segurança estava incorreta ou você desistiu.");
     }
+}
+
+function abrirModalTransferencia() {
+    const valor = prompt("Quanto deseja transferir da Carteira para a Poupança?");
+    if (!valor) return;
+    
+    const numValor = parseFloat(valor.replace(',', '.'));
+    
+    if (isNaN(numValor) || numValor <= 0) {
+        return alert("⚠️ Valor inválido.");
+    }
+    
+    if (numValor > saldoCarteira) {
+        return alert("🚫 Saldo insuficiente na Carteira.");
+    }
+
+    // 1. Tira da Carteira
+    registrarTransacaoCarteira('saida', numValor, "Transferência para Poupança");
+    
+    // 2. Coloca na Poupança
+    saldoPoupanca += numValor;
+    historicoPoupanca.unshift({
+        tipo: 'depositar',
+        valor: numValor,
+        descricao: "Vindo da Carteira",
+        data: new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' })
+    });
+
+    // 3. Salva e Atualiza
+    localStorage.setItem(STORAGE_POUPANCA, saldoPoupanca);
+    localStorage.setItem(STORAGE_HIST_POUPANCA, JSON.stringify(historicoPoupanca));
+    
+    alert(`✅ R$ ${numValor.toFixed(2)} transferidos com sucesso!`);
+    atualizarInterfaceEconomias();
+}
+
+function abrirModalResgate() {
+    const valor = prompt("Quanto deseja tirar da Poupança e enviar para a Carteira?");
+    if (!valor) return;
+    
+    const numValor = parseFloat(valor.replace(',', '.'));
+    
+    if (isNaN(numValor) || numValor <= 0) {
+        return alert("⚠️ Valor inválido.");
+    }
+    
+    if (numValor > saldoPoupanca) {
+        return alert("🚫 Saldo insuficiente na Poupança.");
+    }
+
+    // 1. Tira da Poupança
+    saldoPoupanca -= numValor;
+    historicoPoupanca.unshift({
+        tipo: 'sacar',
+        valor: numValor,
+        descricao: "Enviado para Carteira",
+        data: new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit' })
+    });
+
+    // 2. Coloca na Carteira
+    registrarTransacaoCarteira('entrada', numValor, "Resgate da Poupança");
+
+    // 3. Salva e Atualiza
+    localStorage.setItem(STORAGE_POUPANCA, saldoPoupanca);
+    localStorage.setItem(STORAGE_HIST_POUPANCA, JSON.stringify(historicoPoupanca));
+    
+    alert(`✅ R$ ${numValor.toFixed(2)} voltaram para sua Carteira!`);
+    atualizarInterfaceEconomias();
 }

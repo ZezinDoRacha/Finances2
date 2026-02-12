@@ -9,17 +9,20 @@
 </head>
 <body class="pagina-economias">
 
+    <a href="index.html" title="Voltar para o Início" style="
+        position: fixed; top: 20px; left: 20px; z-index: 1000;
+        width: 50px; height: 50px; background: var(--primary); 
+        border-radius: 50%; display: flex; align-items: center; 
+        justify-content: center; color: white; text-decoration: none; 
+        font-size: 1.2rem; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        transition: transform 0.2s;" 
+        onmouseover="this.style.transform='scale(1.1)'" 
+        onmouseout="this.style.transform='scale(1)'">
+        <i class="fa-solid fa-arrow-left"></i>
+    </a>
+
     <div class="app-container">
         
-        <aside class="sidebar" style="width: 80px; align-items: center;">
-            <a href="index.html" title="Voltar para o Início" style="
-                width: 50px; height: 50px; background: var(--primary); 
-                border-radius: 50%; display: flex; align-items: center; 
-                justify-content: center; color: white; text-decoration: none; 
-                margin-bottom: 20px; font-size: 1.2rem; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-        </aside>
 
         <main class="main-content">
             
@@ -53,6 +56,14 @@
                             <button onclick="realizarOperacao('sacar')" class="btn-sacar">
                                 <i class="fa-solid fa-arrow-up"></i> Saiu
                             </button>
+
+
+                            <button onclick="abrirModalTransferencia()" class="btn-transferir" style="background: var(--warning); color: #333; margin-top: 10px; width: 100%; border-radius: 10px; padding: 12px; font-weight: bold; border: none; cursor: pointer;">
+    <i class="fa-solid fa-exchange-alt"></i> Transferir para Poupança
+</button>
+
+
+
                         </div>
                     </div>
                 </div>
@@ -81,6 +92,12 @@
                             <button onclick="operarPoupanca('sacar')" class="btn-sacar" style="background: #95a5a6;">
                                 <i class="fa-solid fa-hand-holding-dollar"></i> Resgatar
                             </button>
+
+                            <button onclick="abrirModalResgate()" class="btn-resgatar-total" style="background: #9b59b6; color: white; margin-top: 10px; width: 100%; border-radius: 10px; padding: 12px; font-weight: bold; border: none; cursor: pointer;">
+    <i class="fa-solid fa-reply"></i> Enviar para Carteira
+</button>
+
+
                         </div>
                     </div>
                 </div>
